@@ -19,15 +19,15 @@ import requests as http_requests
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://shanks:shanks%402003@localhost:5432/empform")  
+DATABASE_URL = os.getenv("DATABASE_URL", "#")  
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
 
 # Add these environment variables
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "888071763572-9fl9hiijdevagajregm769bqfg2i9t6b.apps.googleusercontent.com")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "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")  # Add your client secret here
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "#")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "#")  # Add your client secret here
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/callback")
 FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI", "http://localhost:3000/EmpForm")
 
