@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
@@ -13,11 +13,27 @@ import datetime
 import os
 from typing import List
 from fastapi.security import OAuth2PasswordBearer
+from google.auth.transport import requests
+from fastapi.responses import RedirectResponse
+import requests as http_requests
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://shanks:shanks%402003@localhost:5432/empform")  
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
+
+
+# Add these environment variables
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "888071763572-9fl9hiijdevagajregm769bqfg2i9t6b.apps.googleusercontent.com")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "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")  # Add your client secret here
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/callback")
+FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI", "http://localhost:3000/EmpForm")
+
+
+
+
 
 app = FastAPI()
 
@@ -36,6 +52,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="Emplogin")
+
+ALLOWED_ORG_DOMAINS = ["dpdzero.com"]
 
 
 class EmployeeCreate(BaseModel):
@@ -119,6 +137,66 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return email
 
+
+def is_allowed_org(email: str) -> bool:
+    domain = email.split('@')[-1]
+    return domain in ALLOWED_ORG_DOMAINS
+
+
+@app.get("/auth/google")
+async def google_auth():
+    """Initiate Google OAuth flow"""
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    url = f"{auth_url}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
+    return RedirectResponse(url)
+
+@app.get("/auth/callback")
+async def auth_callback(code: str):
+    """Handle Google OAuth callback"""
+    # Exchange the authorization code for tokens
+    token_url = "https://oauth2.googleapis.com/token"
+    token_data = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+    
+    token_response = http_requests.post(token_url, data=token_data)
+    if token_response.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get token")
+    
+    tokens = token_response.json()
+
+    # Verify the ID token
+    try:
+        id_info = id_token.verify_oauth2_token(
+            tokens["id_token"], 
+            requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+        
+        user_email = id_info.get("email")
+        if not user_email or not is_allowed_org(user_email):
+            raise HTTPException(status_code=403, detail="Access restricted to authorized organizations")
+
+        # Redirect to frontend
+        return RedirectResponse(FRONTEND_REDIRECT_URI)
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    
+
+
 @app.post("/EmpForm", response_model=EmployeeResponse)
 def emp_data(emp_data: EmployeeCreate, db: SessionLocal = Depends(get_db)):
     try:
@@ -146,6 +224,8 @@ def emp_data(emp_data: EmployeeCreate, db: SessionLocal = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+    
+
 
 @app.post("/Emplogin", response_model=Token)
 def login(user: Login, db: SessionLocal = Depends(get_db)):

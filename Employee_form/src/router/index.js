@@ -6,8 +6,14 @@ import EmployeeTable from "@/components/EmployeeTable.vue";
 
 import Login from "@/components/Login.vue";
 import EditEmployee from "@/components/EditEmployee.vue";
+import GoogleAuth from "@/components/GoogleAuth.vue";
 
 const routes = [
+    {
+      path: '/',
+      name:'GoogleAuth',
+      component: GoogleAuth
+    },
     {
         path: '/EmpForm',
         name: 'EmployeeForm',

@@ -1,13 +1,7 @@
 <template>
-
   <h1>Employee Form</h1>
   <br>
   <form @submit.prevent="submitForm">
-    <!-- <v-text-field
-      v-model="empID"
-      :error-messages="empIDError"
-      label="Employee ID"
-    ></v-text-field> -->
     <v-text-field
       v-model="name"
       :counter="10"
@@ -31,8 +25,8 @@
       readonly
       append-icon="mdi-calendar"
       :error-messages="dateError"
-      @click:append="showDatePicker = !showDatePicker"
-     
+      @click:append="showDatePicker = true"
+      :value = "formattedDate"
     ></v-text-field>
     <v-dialog
       v-model="showDatePicker"
@@ -42,9 +36,11 @@
     >
       <v-date-picker
         v-model="date"
-        @input="handleDateSelection"
+        @input="closeDatePicker"
+        :max="new Date().toISOString().substr(0, 10)"
       ></v-date-picker>
     </v-dialog>
+
     <v-textarea
       v-model="desc"
       :error-messages="descError"
@@ -52,27 +48,27 @@
     ></v-textarea>
 
     <v-text-field
-            v-model="password"
-            :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'"
-            :rules="[rules.required, rules.min]"
-            :type="show1 ? 'text' : 'password'"
-            hint="At least 8 characters"
-            label="Password"
-            name="input-10-1"
-            counter
-            @click:append="show1 = !show1"
-      ></v-text-field>
-      <v-text-field
-            v-model="confirmPassword"
-            :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'"
-            :rules="[rules.required, rules.min]"
-            :type="show1 ? 'text' : 'password'"
-            hint="At least 8 characters"
-            label="Confirm Password"
-            name="input-10-1"
-            counter
-            @click:append="show1 = !show1"
-      ></v-text-field>
+      v-model="password"
+      :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'"
+      :rules="[rules.required, rules.min]"
+      :type="show1 ? 'text' : 'password'"
+      hint="At least 8 characters"
+      label="Password"
+      name="input-10-1"
+      counter
+      @click:append="show1 = !show1"
+    ></v-text-field>
+    <v-text-field
+      v-model="confirmPassword"
+      :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'"
+      :rules="[rules.required, rules.min]"
+      :type="show1 ? 'text' : 'password'"
+      hint="At least 8 characters"
+      label="Confirm Password"
+      name="input-10-1"
+      counter
+      @click:append="show1 = !show1"
+    ></v-text-field>
 
     <v-btn class="me-4" type="submit">Register</v-btn>
     <v-btn @click="resetForm">Clear</v-btn>
@@ -96,72 +92,65 @@ export default {
       dateError: '',
       showDatePicker: false,
       show1: false,
-        show2: true,
-        password: '',
-        confirmPassword: '',
-        rules: {
-          required: value => !!value || 'Required.',
-          min: v => v.length >= 8 || 'Min 8 characters',
-          emailMatch: () => (`The email and password you entered don't match`),
-        },
+      password: '',
+      confirmPassword: '',
+      rules: {
+        required: value => !!value || 'Required.',
+        min: v => v.length >= 8 || 'Min 8 characters',
+        emailMatch: () => (`The email and password you entered don't match`),
+      },
     };
   },
-
-  methods: {
-  async submitForm() {
-  this.validateAll();
-  const hasErrors = Object.values(this.$data)
-    .filter(key => key.toString().includes('Error'))
-    .some(value => value.length > 0);
-
-  if (!hasErrors) {
-    try {
-      // Log the data being sent to the backend
-      console.log({
-        name: this.name,
-        phno: this.phone,
-        email: this.email,
-        dob: this.date,  // Ensure this is a string in the format 'YYYY-MM-DD'
-        addr: this.desc
-      });
-
-      const response = await fetch('http://localhost:8000/EmpForm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          
-          name: this.name,
-          phno: this.phone,
-          email: this.email,
-          dob: this.date,  // Ensure it's in the 'YYYY-MM-DD' format
-          addr: this.desc,
-          password: this.password,
-          confirm_password: this.confirmPassword
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to submit form');
-      }
-
-      const data = await response.json();
-      console.log(data);
-      console.log('Form submitted successfully!', data);
-      alert('Employee data saved successfully!');
-      this.$router.push('/Emplogin')
-
-      
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      alert(`Error: ${error.message}`);
-    }
-  } else {
-    alert('Please fix the errors in the form.');
+  computed: {
+  formattedDate() {
+    // Ensure the date is displayed in 'YYYY-MM-DD' format
+    return this.date ? this.date.toISOString().split('T')[0] : '';
   }
 },
+
+  methods: {
+    async submitForm() {
+      this.validateAll();
+      const hasErrors = Object.values(this.$data)
+        .filter(key => key.toString().includes('Error'))
+        .some(value => value.length > 0);
+
+      if (!hasErrors) {
+        try {
+          const formattedDate = this.date ? this.date.toISOString().split('T')[0] : null; 
+          const response = await fetch('http://localhost:8000/EmpForm', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: this.name,
+              phno: this.phone,
+              email: this.email,
+              dob: formattedDate,  // Ensure it's in the 'YYYY-MM-DD' format
+              addr: this.desc,
+              password: this.password,
+              confirm_password: this.confirmPassword
+            })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to submit form');
+          }
+
+          const data = await response.json();
+          console.log('Form submitted successfully!', data);
+          alert('Employee data saved successfully!');
+          this.$router.push('/Emplogin');
+        } catch (error) {
+          console.error('Error submitting form:', error);
+          alert(`Error: ${error.message}`);
+        }
+      } else {
+        alert('Please fix the errors in the form.');
+      }
+    },
     validateAll() {
       this.nameError = this.name.length >= 2 ? '' : 'Name needs to be at least 2 characters.';
       this.phoneError = /^[0-9-]{10,}$/.test(this.phone) ? '' : 'Phone number needs to be at least 10 digits.';
@@ -169,22 +158,9 @@ export default {
       this.descError = this.desc.length > 0 ? '' : 'Enter a valid Address';
       this.dateError = this.date ? '' : 'Date of Birth is required';
     },
-    handleDateSelection(selectedDate) {
-      // Format the selected date to yyyy-mm-dd
-      this.date = this.formatDate(selectedDate);
-      this.showDatePicker = false;
-    },
     closeDatePicker() {
       this.showDatePicker = false;
     },
-    formatDate(date) {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-    const day = String(d.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  },
     resetForm() {
       Object.keys(this.$data).forEach(key => {
         if (key === 'date') {
@@ -197,7 +173,5 @@ export default {
       });
     },
   },
-
-
 };
 </script>

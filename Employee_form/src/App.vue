@@ -4,6 +4,8 @@
   import '@mdi/font/css/materialdesignicons.min.css';
 
   import { RouterView } from 'vue-router';
+  
+
 </script>
 
 <template>          
